@@ -9,7 +9,7 @@ export function registerLogsTool(server: McpServer, config: DatadogConfig) {
 
   server.tool(
     "query_logs",
-    "Search Datadog logs using the standard log query syntax (e.g. 'service:web-app status:error'). Returns matching log events with timestamps, messages, and attributes.",
+    "Search Datadog logs using the standard log query syntax (e.g. 'service:web-app status:error'). Returns matching log events with timestamps, messages, and attributes. Set full_output to true for untruncated results.",
     {
       query: z
         .string()
@@ -34,8 +34,12 @@ export function registerLogsTool(server: McpServer, config: DatadogConfig) {
         .enum(["timestamp", "-timestamp"])
         .default("-timestamp")
         .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      full_output: z
+        .boolean()
+        .default(false)
+        .describe("When true, return full log messages and all attributes without truncation. Use with a small limit to avoid huge responses."),
     },
-    async ({ query, from, to, limit, sort }) => {
+    async ({ query, from, to, limit, sort, full_output }) => {
       try {
         const response = await api.listLogsGet({
           filterQuery: query,
@@ -53,7 +57,22 @@ export function registerLogsTool(server: McpServer, config: DatadogConfig) {
 
         const formatted = logs.map((log) => {
           const attrs = log.attributes ?? {};
+
+          if (full_output) {
+            return {
+              id: log.id,
+              timestamp: attrs.timestamp,
+              status: attrs.status,
+              service: attrs.service,
+              message: attrs.message,
+              host: attrs.host,
+              tags: attrs.tags,
+              attributes: attrs.attributes,
+            };
+          }
+
           return {
+            id: log.id,
             timestamp: attrs.timestamp,
             status: attrs.status,
             service: attrs.service,
@@ -63,13 +82,12 @@ export function registerLogsTool(server: McpServer, config: DatadogConfig) {
           };
         });
 
+        const text = full_output
+          ? JSON.stringify(formatted, null, 2)
+          : formatToolOutput(formatted, "logs", logs.length);
+
         return {
-          content: [
-            {
-              type: "text",
-              text: formatToolOutput(formatted, "logs", logs.length),
-            },
-          ],
+          content: [{ type: "text", text }],
         };
       } catch (error) {
         return {
@@ -77,6 +95,68 @@ export function registerLogsTool(server: McpServer, config: DatadogConfig) {
             {
               type: "text",
               text: `Failed to query logs: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get_log_by_id",
+    "Retrieve a single log by its ID with full, untruncated attributes and message. Use after query_logs to inspect a specific log in detail.",
+    {
+      log_id: z
+        .string()
+        .describe("The log ID (returned by query_logs in the 'id' field)"),
+      query: z
+        .string()
+        .describe("The original search query used in query_logs (needed to locate the log)"),
+      from: z
+        .string()
+        .default("now-1d")
+        .describe("Start time — should cover when the log was generated"),
+      to: z
+        .string()
+        .default("now")
+        .describe("End time"),
+    },
+    async ({ log_id, query, from, to }) => {
+      try {
+        for await (const log of api.listLogsGetWithPagination({
+          filterQuery: query,
+          filterFrom: new Date(resolveRelativeTime(from)),
+          filterTo: new Date(resolveRelativeTime(to)),
+          pageLimit: 100,
+        })) {
+          if (log.id === log_id) {
+            const attrs = log.attributes ?? {};
+            const result = {
+              id: log.id,
+              timestamp: attrs.timestamp,
+              status: attrs.status,
+              service: attrs.service,
+              message: attrs.message,
+              host: attrs.host,
+              tags: attrs.tags,
+              attributes: attrs.attributes,
+            };
+            return {
+              content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            };
+          }
+        }
+
+        return {
+          content: [{ type: "text", text: `Log with ID '${log_id}' not found. Make sure the query and time range match the original search.` }],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get log: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
           isError: true,
