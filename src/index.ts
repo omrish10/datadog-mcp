@@ -9,6 +9,7 @@ import { registerIncidentsTool } from "./tools/incidents.js";
 import { registerDashboardTool } from "./tools/dashboards.js";
 import { registerSpansTool } from "./tools/spans.js";
 import { registerListMetricsTool } from "./tools/list_metrics.js";
+import { registerRumTool } from "./tools/rum.js";
 import { getDatadogConfig } from "./config.js";
 
 const config = getDatadogConfig();
@@ -25,6 +26,7 @@ registerIncidentsTool(server, config);
 registerDashboardTool(server, config);
 registerSpansTool(server, config);
 registerListMetricsTool(server, config);
+registerRumTool(server, config);
 
 async function main() {
   const transport = new StdioServerTransport();
