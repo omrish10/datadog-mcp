@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 export interface DatadogConfig {
   configuration: client.Configuration;
+  site: string;
 }
 
 function loadEnvFile(): void {
@@ -62,5 +63,5 @@ export function getDatadogConfig(): DatadogConfig {
     configParams as Parameters<typeof client.createConfiguration>[0]
   );
 
-  return { configuration };
+  return { configuration, site: site ?? "datadoghq.com" };
 }
