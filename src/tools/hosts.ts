@@ -7,32 +7,37 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerHostsTool(server: McpServer, config: DatadogConfig) {
   const api = new v1.HostsApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "list_hosts",
-    "List and search Datadog infrastructure hosts. Filter by name, alias, or tag. Returns host metadata including apps, tags, and platform info.",
     {
-      filter: z
-        .string()
-        .optional()
-        .describe("Filter hosts by name, alias, or tag"),
-      sort_field: z
-        .string()
-        .optional()
-        .describe("Field to sort by"),
-      sort_dir: z
-        .enum(["asc", "desc"])
-        .optional()
-        .describe("Sort direction"),
-      count: z
-        .number()
-        .min(1)
-        .max(1000)
-        .default(50)
-        .describe("Number of hosts to return"),
-      include_metadata: z
-        .boolean()
-        .default(true)
-        .describe("Include agent version, platform, processor info"),
+      title: "List Hosts",
+      description:
+        "List and search Datadog infrastructure hosts. Filter by name, alias, or tag. Returns host metadata including apps, tags, and platform info.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        filter: z
+          .string()
+          .optional()
+          .describe("Filter hosts by name, alias, or tag"),
+        sort_field: z
+          .string()
+          .optional()
+          .describe("Field to sort by"),
+        sort_dir: z
+          .enum(["asc", "desc"])
+          .optional()
+          .describe("Sort direction"),
+        count: z
+          .number()
+          .min(1)
+          .max(1000)
+          .default(50)
+          .describe("Number of hosts to return"),
+        include_metadata: z
+          .boolean()
+          .default(true)
+          .describe("Include agent version, platform, processor info"),
+      },
     },
     async ({ filter, sort_field, sort_dir, count, include_metadata }) => {
       try {

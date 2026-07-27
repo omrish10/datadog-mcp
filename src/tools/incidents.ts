@@ -7,24 +7,29 @@ import { formatToolOutput } from "./format.js";
 export function registerIncidentsTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.IncidentsApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "search_incidents",
-    "Search Datadog incidents by query. Returns incident title, status, severity, and timeline.",
     {
-      query: z
-        .string()
-        .default("state:(active OR stable)")
-        .describe("Incident search query (e.g. 'state:active', 'severity:SEV-1', 'state:(active OR stable)')"),
-      pageSize: z
-        .number()
-        .min(1)
-        .max(50)
-        .default(10)
-        .describe("Number of incidents to return (1-50)"),
-      sort: z
-        .enum(["created", "-created", "modified", "-modified"])
-        .default("-created")
-        .describe("Sort order"),
+      title: "Search Incidents",
+      description:
+        "Search Datadog incidents by query. Returns incident title, status, severity, and timeline.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .default("state:(active OR stable)")
+          .describe("Incident search query (e.g. 'state:active', 'severity:SEV-1', 'state:(active OR stable)')"),
+        pageSize: z
+          .number()
+          .min(1)
+          .max(50)
+          .default(10)
+          .describe("Number of incidents to return (1-50)"),
+        sort: z
+          .enum(["created", "-created", "modified", "-modified"])
+          .default("-created")
+          .describe("Sort order"),
+      },
     },
     async ({ query, pageSize, sort }) => {
       try {

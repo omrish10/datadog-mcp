@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { v1 } from "@datadog/datadog-api-client";
 import { z } from "zod";
 import type { DatadogConfig } from "../config.js";
-import { truncate, formatToolOutput } from "./format.js";
+import { truncate, formatToolOutput, appUrl } from "./format.js";
 
 const LIVE_SPANS = [
   "1m", "5m", "10m", "15m", "30m",
@@ -58,9 +58,7 @@ function buildCells(cells: CellInput[]) {
 
 function notebookUrl(site: string, id: number | undefined): string {
   if (!id) return "";
-  const parts = site.split(".");
-  const host = parts.length > 2 ? site : `app.${site}`;
-  return `https://${host}/notebook/${id}`;
+  return appUrl(site, `notebook/${id}`);
 }
 
 export function registerNotebooksTool(server: McpServer, config: DatadogConfig) {
@@ -68,24 +66,29 @@ export function registerNotebooksTool(server: McpServer, config: DatadogConfig) 
 
   // ── get_notebook ──────────────────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "get_notebook",
-    "List Datadog notebooks or get a specific notebook's contents. Notebooks contain investigation runbooks, postmortem data, and saved analyses.",
     {
-      notebook_id: z
-        .number()
-        .optional()
-        .describe("Specific notebook ID to fetch with full cell contents"),
-      query: z
-        .string()
-        .optional()
-        .describe("Search notebooks by name"),
-      count: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Number of notebooks to return (when listing)"),
+      title: "Get Notebook",
+      description:
+        "List Datadog notebooks or get a specific notebook's contents. Notebooks contain investigation runbooks, postmortem data, and saved analyses.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        notebook_id: z
+          .number()
+          .optional()
+          .describe("Specific notebook ID to fetch with full cell contents"),
+        query: z
+          .string()
+          .optional()
+          .describe("Search notebooks by name"),
+        count: z
+          .number()
+          .min(1)
+          .max(100)
+          .default(20)
+          .describe("Number of notebooks to return (when listing)"),
+      },
     },
     async ({ notebook_id, query, count }) => {
       try {
@@ -166,33 +169,43 @@ export function registerNotebooksTool(server: McpServer, config: DatadogConfig) 
 
   // ── create_notebook ───────────────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "create_notebook",
-    "Create a new Datadog notebook. Notebooks support markdown and graph cells.\n\nCell examples:\n- Markdown: {type:'markdown', content:'# Title'}\n- Timeseries: {type:'timeseries', definition:{requests:[{q:'avg:system.cpu.user{*}'}]}, graph_size:'m'}\n- Toplist: {type:'toplist', definition:{requests:[{q:'top(avg:system.cpu.user{*} by {host}, 10, \"mean\", \"desc\")'}]}}\n- Log stream: {type:'log_stream', definition:{indexes:['main'], query:'service:web', columns:['host','service','content']}}\n\nThe 'definition.type' field is auto-injected from the cell type — you don't need to include it.",
     {
-      name: z.string().describe("Notebook title"),
-      cells: z
-        .array(
-          z.object({
-            type: z.enum(CELL_TYPES).describe("Cell type: 'markdown' for text, or a graph type"),
-            content: z.string().optional().describe("Markdown text (required for markdown cells)"),
-            definition: z
-              .record(z.unknown())
-              .optional()
-              .describe("Widget definition object (required for graph cells). Must contain the fields expected by the Datadog widget type — e.g. {requests:[{q:'metric.query{tags}'}]} for timeseries/toplist/heatmap/distribution, or {indexes:['main'], query:'search query'} for log_stream. The 'type' field is auto-injected from the cell type."),
-            graph_size: z.enum(GRAPH_SIZES).optional().describe("Graph display size"),
-          })
-        )
-        .min(1)
-        .describe("Notebook cells"),
-      time_range: z
-        .enum(LIVE_SPANS)
-        .default("1h")
-        .describe("Global time range for the notebook"),
-      metadata_type: z
-        .enum(METADATA_TYPES)
-        .optional()
-        .describe("Notebook type for categorization"),
+      title: "Create Notebook",
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+      description:
+        "Create a new Datadog notebook. Notebooks support markdown and graph cells.\n\nCell examples:\n- Markdown: {type:'markdown', content:'# Title'}\n- Timeseries: {type:'timeseries', definition:{requests:[{q:'avg:system.cpu.user{*}'}]}, graph_size:'m'}\n- Toplist: {type:'toplist', definition:{requests:[{q:'top(avg:system.cpu.user{*} by {host}, 10, \"mean\", \"desc\")'}]}}\n- Log stream: {type:'log_stream', definition:{indexes:['main'], query:'service:web', columns:['host','service','content']}}\n\nThe 'definition.type' field is auto-injected from the cell type — you don't need to include it.",
+      inputSchema: {
+        name: z.string().describe("Notebook title"),
+        cells: z
+          .array(
+            z.object({
+              type: z.enum(CELL_TYPES).describe("Cell type: 'markdown' for text, or a graph type"),
+              content: z.string().optional().describe("Markdown text (required for markdown cells)"),
+              definition: z
+                .record(z.unknown())
+                .optional()
+                .describe("Widget definition object (required for graph cells). Must contain the fields expected by the Datadog widget type — e.g. {requests:[{q:'metric.query{tags}'}]} for timeseries/toplist/heatmap/distribution, or {indexes:['main'], query:'search query'} for log_stream. The 'type' field is auto-injected from the cell type."),
+              graph_size: z.enum(GRAPH_SIZES).optional().describe("Graph display size"),
+            })
+          )
+          .min(1)
+          .describe("Notebook cells"),
+        time_range: z
+          .enum(LIVE_SPANS)
+          .default("1h")
+          .describe("Global time range for the notebook"),
+        metadata_type: z
+          .enum(METADATA_TYPES)
+          .optional()
+          .describe("Notebook type for categorization"),
+      },
     },
     async ({ name, cells, time_range, metadata_type }) => {
       try {
@@ -240,38 +253,49 @@ export function registerNotebooksTool(server: McpServer, config: DatadogConfig) 
 
   // ── update_notebook ───────────────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "update_notebook",
-    "Update an existing Datadog notebook. Replaces the full notebook content — use get_notebook first to fetch current cells and their IDs. Cells with an id update existing cells; cells without id create new cells; existing cells omitted from the list are deleted.",
     {
-      notebook_id: z.number().describe("ID of the notebook to update"),
-      name: z.string().describe("Notebook title"),
-      cells: z
-        .array(
-          z.object({
-            type: z.enum(CELL_TYPES).describe("Cell type: 'markdown' for text, or a graph type"),
-            content: z.string().optional().describe("Markdown text (required for markdown cells)"),
-            definition: z
-              .record(z.unknown())
-              .optional()
-              .describe("Widget definition object (required for graph cells). Must contain the fields expected by the Datadog widget type — e.g. {requests:[{q:'metric.query{tags}'}]} for timeseries/toplist/heatmap/distribution, or {indexes:['main'], query:'search query'} for log_stream. The 'type' field is auto-injected from the cell type."),
-            graph_size: z.enum(GRAPH_SIZES).optional().describe("Graph display size"),
-            id: z
-              .string()
-              .optional()
-              .describe("Existing cell ID from get_notebook — include to update, omit to create new"),
-          })
-        )
-        .min(1)
-        .describe("Complete list of cells for the notebook"),
-      time_range: z
-        .enum(LIVE_SPANS)
-        .default("1h")
-        .describe("Global time range for the notebook"),
-      metadata_type: z
-        .enum(METADATA_TYPES)
-        .optional()
-        .describe("Notebook type for categorization"),
+      title: "Update Notebook",
+      description:
+        "Update an existing Datadog notebook. Replaces the full notebook content — use get_notebook first to fetch current cells and their IDs. Cells with an id update existing cells; cells without id create new cells; existing cells omitted from the list are deleted.",
+      // Replaces the whole notebook: cells omitted from the list are deleted.
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+      inputSchema: {
+        notebook_id: z.number().describe("ID of the notebook to update"),
+        name: z.string().describe("Notebook title"),
+        cells: z
+          .array(
+            z.object({
+              type: z.enum(CELL_TYPES).describe("Cell type: 'markdown' for text, or a graph type"),
+              content: z.string().optional().describe("Markdown text (required for markdown cells)"),
+              definition: z
+                .record(z.unknown())
+                .optional()
+                .describe("Widget definition object (required for graph cells). Must contain the fields expected by the Datadog widget type — e.g. {requests:[{q:'metric.query{tags}'}]} for timeseries/toplist/heatmap/distribution, or {indexes:['main'], query:'search query'} for log_stream. The 'type' field is auto-injected from the cell type."),
+              graph_size: z.enum(GRAPH_SIZES).optional().describe("Graph display size"),
+              id: z
+                .string()
+                .optional()
+                .describe("Existing cell ID from get_notebook — include to update, omit to create new"),
+            })
+          )
+          .min(1)
+          .describe("Complete list of cells for the notebook"),
+        time_range: z
+          .enum(LIVE_SPANS)
+          .default("1h")
+          .describe("Global time range for the notebook"),
+        metadata_type: z
+          .enum(METADATA_TYPES)
+          .optional()
+          .describe("Notebook type for categorization"),
+      },
     },
     async ({ notebook_id, name, cells, time_range, metadata_type }) => {
       try {
@@ -319,11 +343,20 @@ export function registerNotebooksTool(server: McpServer, config: DatadogConfig) 
 
   // ── delete_notebook ───────────────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "delete_notebook",
-    "Delete a Datadog notebook by ID. This action is irreversible.",
     {
-      notebook_id: z.number().describe("ID of the notebook to delete"),
+      title: "Delete Notebook",
+      description: "Delete a Datadog notebook by ID. This action is irreversible.",
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+      inputSchema: {
+        notebook_id: z.number().describe("ID of the notebook to delete"),
+      },
     },
     async ({ notebook_id }) => {
       try {

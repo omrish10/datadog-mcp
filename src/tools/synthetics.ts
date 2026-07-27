@@ -7,24 +7,29 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerSyntheticsTool(server: McpServer, config: DatadogConfig) {
   const api = new v1.SyntheticsApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "list_synthetics",
-    "List Datadog Synthetic tests or get latest results for a specific test. Covers API tests, browser tests, and multistep tests.",
     {
-      test_id: z
-        .string()
-        .optional()
-        .describe("Public test ID to fetch latest results for"),
-      query: z
-        .string()
-        .optional()
-        .describe("Search text to filter tests by name"),
-      page_size: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Number of tests to return"),
+      title: "List Synthetic Tests",
+      description:
+        "List Datadog Synthetic tests or get latest results for a specific test. Covers API tests, browser tests, and multistep tests.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        test_id: z
+          .string()
+          .optional()
+          .describe("Public test ID to fetch latest results for"),
+        query: z
+          .string()
+          .optional()
+          .describe("Search text to filter tests by name"),
+        page_size: z
+          .number()
+          .min(1)
+          .max(100)
+          .default(20)
+          .describe("Number of tests to return"),
+      },
     },
     async ({ test_id, query, page_size }) => {
       try {

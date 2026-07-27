@@ -63,5 +63,10 @@ export function getDatadogConfig(): DatadogConfig {
     configParams as Parameters<typeof client.createConfiguration>[0]
   );
 
+  // The incident search endpoint is flagged "unstable" by the Datadog client
+  // and rejects calls unless opted in. search_incidents is the only operation
+  // this server uses that is gated this way.
+  configuration.unstableOperations["v2.searchIncidents"] = true;
+
   return { configuration, site: site ?? "datadoghq.com" };
 }

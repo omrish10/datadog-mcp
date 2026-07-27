@@ -7,39 +7,44 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerAuditTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.AuditApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "query_audit_logs",
-    "Search Datadog audit logs to find who changed monitors, dashboards, or other resources. " +
-      "Useful for tracking configuration changes and investigating incidents.",
     {
-      query: z
-        .string()
-        .optional()
-        .describe(
-          "Audit log query (e.g. '@type:monitor', '@action:modified')"
-        ),
-      from: z
-        .string()
-        .default("now-1d")
-        .describe(
-          "Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"
-        ),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time — ISO-8601 or relative like 'now'"),
-      limit: z
-        .number()
-        .min(1)
-        .max(50)
-        .default(20)
-        .describe("Max audit events to return (1-50)"),
-      sort: z
-        .enum(["timestamp", "-timestamp"])
-        .default("-timestamp")
-        .describe(
-          "Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"
-        ),
+      title: "Query Audit Logs",
+      description:
+        "Search Datadog audit logs to find who changed monitors, dashboards, or other resources. " +
+        "Useful for tracking configuration changes and investigating incidents.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .optional()
+          .describe(
+            "Audit log query (e.g. '@type:monitor', '@action:modified')"
+          ),
+        from: z
+          .string()
+          .default("now-1d")
+          .describe(
+            "Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"
+          ),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time — ISO-8601 or relative like 'now'"),
+        limit: z
+          .number()
+          .min(1)
+          .max(50)
+          .default(20)
+          .describe("Max audit events to return (1-50)"),
+        sort: z
+          .enum(["timestamp", "-timestamp"])
+          .default("-timestamp")
+          .describe(
+            "Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"
+          ),
+      },
     },
     async ({ query, from, to, limit, sort }) => {
       try {

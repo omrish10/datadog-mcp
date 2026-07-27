@@ -7,33 +7,38 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerSpansTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.SpansApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "search_spans",
-    "Search Datadog APM spans/traces using span search syntax (e.g. 'service:gateway @duration:>1s', 'env:prod resource_name:\"/api/users\"'). Returns matching spans with trace IDs, durations, and tags.",
     {
-      query: z
-        .string()
-        .describe(
-          "Datadog span search query (e.g. 'service:my-app env:prod @duration:>500ms resource_name:\"/api/users\"')"
-        ),
-      from: z
-        .string()
-        .default("now-1h")
-        .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time — ISO-8601 or relative like 'now'"),
-      limit: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Max number of spans to return (1-100)"),
-      sort: z
-        .enum(["timestamp", "-timestamp"])
-        .default("-timestamp")
-        .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      title: "Search Spans",
+      description:
+        "Search Datadog APM spans/traces using span search syntax (e.g. 'service:gateway @duration:>1s', 'env:prod resource_name:\"/api/users\"'). Returns matching spans with trace IDs, durations, and tags.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .describe(
+            "Datadog span search query (e.g. 'service:my-app env:prod @duration:>500ms resource_name:\"/api/users\"')"
+          ),
+        from: z
+          .string()
+          .default("now-1h")
+          .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time — ISO-8601 or relative like 'now'"),
+        limit: z
+          .number()
+          .min(1)
+          .max(100)
+          .default(20)
+          .describe("Max number of spans to return (1-100)"),
+        sort: z
+          .enum(["timestamp", "-timestamp"])
+          .default("-timestamp")
+          .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      },
     },
     async ({ query, from, to, limit, sort }) => {
       try {

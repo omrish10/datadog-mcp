@@ -7,36 +7,41 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerSlosTool(server: McpServer, config: DatadogConfig) {
   const api = new v1.ServiceLevelObjectivesApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "list_slos",
-    "List Datadog SLOs or get detailed SLO history. Without slo_id, lists SLOs filtered by name/tags. With slo_id, returns SLO status history including SLI value and error budget.",
     {
-      query: z
-        .string()
-        .optional()
-        .describe("Filter SLOs by name"),
-      tags: z
-        .string()
-        .optional()
-        .describe("Comma-separated tags to filter by"),
-      slo_id: z
-        .string()
-        .optional()
-        .describe("Specific SLO ID to get history for"),
-      from: z
-        .string()
-        .default("now-7d")
-        .describe("History start time (only with slo_id)"),
-      to: z
-        .string()
-        .default("now")
-        .describe("History end time (only with slo_id)"),
-      limit: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(25)
-        .describe("Max SLOs to return"),
+      title: "List SLOs",
+      description:
+        "List Datadog SLOs or get detailed SLO history. Without slo_id, lists SLOs filtered by name/tags. With slo_id, returns SLO status history including SLI value and error budget.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .optional()
+          .describe("Filter SLOs by name"),
+        tags: z
+          .string()
+          .optional()
+          .describe("Comma-separated tags to filter by"),
+        slo_id: z
+          .string()
+          .optional()
+          .describe("Specific SLO ID to get history for"),
+        from: z
+          .string()
+          .default("now-7d")
+          .describe("History start time (only with slo_id)"),
+        to: z
+          .string()
+          .default("now")
+          .describe("History end time (only with slo_id)"),
+        limit: z
+          .number()
+          .min(1)
+          .max(100)
+          .default(25)
+          .describe("Max SLOs to return"),
+      },
     },
     async ({ query, tags, slo_id, from, to, limit }) => {
       try {

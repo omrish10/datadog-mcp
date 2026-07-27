@@ -7,21 +7,26 @@ import { truncateTags, formatToolOutput } from "./format.js";
 export function registerTraceTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.SpansApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "get_trace",
-    "Fetch all spans for a distributed trace by trace ID. Returns the full trace tree with timing, service, and resource information for each span.",
     {
-      trace_id: z
-        .string()
-        .describe("The trace ID to look up"),
-      from: z
-        .string()
-        .default("now-1h")
-        .describe("Start time — ISO-8601 or relative like 'now-1h'"),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time"),
+      title: "Get Trace",
+      description:
+        "Fetch all spans for a distributed trace by trace ID. Returns the full trace tree with timing, service, and resource information for each span.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        trace_id: z
+          .string()
+          .describe("The trace ID to look up"),
+        from: z
+          .string()
+          .default("now-1h")
+          .describe("Start time — ISO-8601 or relative like 'now-1h'"),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time"),
+      },
     },
     async ({ trace_id, from, to }) => {
       try {

@@ -1,5 +1,21 @@
 const MAX_OUTPUT_CHARS = 80_000;
 
+/**
+ * Resolve the Datadog web-app host for a configured API site.
+ *
+ * `DD_SITE` holds an API host (e.g. "datadoghq.eu", "us3.datadoghq.com"). The
+ * matching web app lives on the same domain, prefixed with "app." for the bare
+ * two-label sites. Subdomained sites (us3/us5/ap1/…) are already app-routable.
+ */
+export function appHost(site: string): string {
+  return site.split(".").length > 2 ? site : `app.${site}`;
+}
+
+/** Build an absolute Datadog web-app URL for the configured site. */
+export function appUrl(site: string, path: string): string {
+  return `https://${appHost(site)}/${path.replace(/^\//, "")}`;
+}
+
 export function truncate(str: string | undefined | null, maxLen: number): string | undefined {
   if (!str) return str ?? undefined;
   if (str.length <= maxLen) return str;

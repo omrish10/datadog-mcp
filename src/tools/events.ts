@@ -7,34 +7,39 @@ import { truncate, truncateTags, formatToolOutput } from "./format.js";
 export function registerEventsTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.EventsApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "query_events",
-    "Search the Datadog event stream for deploys, alerts, and configuration changes. Use to correlate events with incidents or performance issues.",
     {
-      query: z
-        .string()
-        .optional()
-        .describe(
-          "Event search query (e.g. 'sources:deploy', 'tags:service:web-app')"
-        ),
-      from: z
-        .string()
-        .default("now-1d")
-        .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time — ISO-8601 or relative like 'now'"),
-      limit: z
-        .number()
-        .min(1)
-        .max(50)
-        .default(20)
-        .describe("Max events to return (1-50)"),
-      sort: z
-        .enum(["timestamp", "-timestamp"])
-        .default("-timestamp")
-        .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      title: "Query Events",
+      description:
+        "Search the Datadog event stream for deploys, alerts, and configuration changes. Use to correlate events with incidents or performance issues.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .optional()
+          .describe(
+            "Event search query (e.g. 'sources:deploy', 'tags:service:web-app')"
+          ),
+        from: z
+          .string()
+          .default("now-1d")
+          .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time — ISO-8601 or relative like 'now'"),
+        limit: z
+          .number()
+          .min(1)
+          .max(50)
+          .default(20)
+          .describe("Max events to return (1-50)"),
+        sort: z
+          .enum(["timestamp", "-timestamp"])
+          .default("-timestamp")
+          .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      },
     },
     async ({ query, from, to, limit, sort }) => {
       try {

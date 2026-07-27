@@ -7,23 +7,28 @@ import { formatToolOutput } from "./format.js";
 export function registerMetricsTool(server: McpServer, config: DatadogConfig) {
   const api = new v1.MetricsApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "query_metrics",
-    "Query Datadog metric timeseries data. Uses the v1 metrics query syntax (e.g. 'avg:system.cpu.user{host:myhost}').",
     {
-      query: z
-        .string()
-        .describe(
-          "Datadog metrics query (e.g. 'avg:system.cpu.user{*}', 'sum:trace.servlet.request.hits{service:web-app}.as_count()')"
-        ),
-      from: z
-        .string()
-        .default("now-1h")
-        .describe("Start time — ISO-8601 or relative like 'now-1h', 'now-4h', 'now-1d'"),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time — ISO-8601 or relative like 'now'"),
+      title: "Query Metrics",
+      description:
+        "Query Datadog metric timeseries data. Uses the v1 metrics query syntax (e.g. 'avg:system.cpu.user{host:myhost}').",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .describe(
+            "Datadog metrics query (e.g. 'avg:system.cpu.user{*}', 'sum:trace.servlet.request.hits{service:web-app}.as_count()')"
+          ),
+        from: z
+          .string()
+          .default("now-1h")
+          .describe("Start time — ISO-8601 or relative like 'now-1h', 'now-4h', 'now-1d'"),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time — ISO-8601 or relative like 'now'"),
+      },
     },
     async ({ query, from, to }) => {
       try {

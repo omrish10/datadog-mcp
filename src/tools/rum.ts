@@ -2,42 +2,47 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { v2 } from "@datadog/datadog-api-client";
 import { z } from "zod";
 import type { DatadogConfig } from "../config.js";
-import { truncate, truncateTags, formatToolOutput } from "./format.js";
+import { truncate, truncateTags, formatToolOutput, appUrl } from "./format.js";
 
 export function registerRumTool(server: McpServer, config: DatadogConfig) {
   const api = new v2.RUMApi(config.configuration);
 
-  server.tool(
+  server.registerTool(
     "search_rum_events",
-    "Search Datadog RUM (Real User Monitoring) events — sessions, network requests, JS errors, user actions, and views. " +
-      "Use RUM query syntax to filter by event type, user, application, browser, and more. " +
-      "Examples: '@type:session @session.has_replay:true', '@type:resource @resource.status_code:>=400', '@type:error service:my-app'.",
     {
-      query: z
-        .string()
-        .default("@type:session @session.has_replay:true")
-        .describe(
-          "Datadog RUM query string. Filter by type: '@type:session', '@type:resource', '@type:error', '@type:action', '@type:view'. " +
-            "Combine with filters: '@session.has_replay:true', '@resource.status_code:>=400', '@usr.email:user@example.com', 'service:my-app'."
-        ),
-      from: z
-        .string()
-        .default("now-1h")
-        .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
-      to: z
-        .string()
-        .default("now")
-        .describe("End time — ISO-8601 or relative like 'now'"),
-      limit: z
-        .number()
-        .min(1)
-        .max(50)
-        .default(20)
-        .describe("Max number of RUM events to return (1-50)"),
-      sort: z
-        .enum(["timestamp", "-timestamp"])
-        .default("-timestamp")
-        .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      title: "Search RUM Events",
+      description:
+        "Search Datadog RUM (Real User Monitoring) events — sessions, network requests, JS errors, user actions, and views. " +
+        "Use RUM query syntax to filter by event type, user, application, browser, and more. " +
+        "Examples: '@type:session @session.has_replay:true', '@type:resource @resource.status_code:>=400', '@type:error service:my-app'.",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      inputSchema: {
+        query: z
+          .string()
+          .default("@type:session @session.has_replay:true")
+          .describe(
+            "Datadog RUM query string. Filter by type: '@type:session', '@type:resource', '@type:error', '@type:action', '@type:view'. " +
+              "Combine with filters: '@session.has_replay:true', '@resource.status_code:>=400', '@usr.email:user@example.com', 'service:my-app'."
+          ),
+        from: z
+          .string()
+          .default("now-1h")
+          .describe("Start time — ISO-8601 or relative like 'now-15m', 'now-1h', 'now-1d'"),
+        to: z
+          .string()
+          .default("now")
+          .describe("End time — ISO-8601 or relative like 'now'"),
+        limit: z
+          .number()
+          .min(1)
+          .max(50)
+          .default(20)
+          .describe("Max number of RUM events to return (1-50)"),
+        sort: z
+          .enum(["timestamp", "-timestamp"])
+          .default("-timestamp")
+          .describe("Sort order: '-timestamp' (newest first) or 'timestamp' (oldest first)"),
+      },
     },
     async ({ query, from, to, limit, sort }) => {
       try {
@@ -88,7 +93,10 @@ export function registerRumTool(server: McpServer, config: DatadogConfig) {
           };
 
           if (inner["session"]?.["has_replay"] && inner["session"]?.["id"]) {
-            base.replayUrl = `https://app.datadoghq.com/rum/replay/sessions/${inner["session"]["id"]}`;
+            base.replayUrl = appUrl(
+              config.site,
+              `rum/replay/sessions/${inner["session"]["id"]}`
+            );
           }
 
           if (eventType === "session") {
